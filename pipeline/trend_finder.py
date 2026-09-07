@@ -1,4 +1,4 @@
-﻿"""
+"""
 trend_finder.py - Interactive & Automated Topic Selector for YouTube Shorts.
 - Lets user interactively choose categories (Fairy Tales, Science Facts, Funny Stories, Riddles, ABC/Numbers)
 - Lets user choose "Other" and type their own custom topic
@@ -120,8 +120,16 @@ Return ONLY raw valid JSON:
   "color_scheme": ["#FF5E62", "#FF9966"]
 }}"""
     else:
-        prompt = f"""You are a top YouTube Shorts creator for kids aged 3-8.
-Pick ONE unique, super engaging topic for category: {category}
+        prompt = f"""You are a viral YouTube Shorts researcher and children's animator (ages 3-8).
+The creator has chosen the category: {category.upper()}
+
+Find the MOST VIRAL, TRENDING, and FASCINATING kids concept for this category right now!
+Focus on high-retention, high-curiosity angles that blow kids' minds and get millions of views on YouTube Shorts:
+- If Fairy Tales: Classic magical characters (dragon, fairy, magic carpet, wizard puppy, friendly giant) with a sweet or funny twist!
+- If Science Facts: Mind-blowing, weird, colorful nature or animal superpowers!
+- If Funny Stories: Clumsy cute animals in goofy situations with a hilarious punchline!
+- If Riddles: Catchy rhyming mystery question that kids can't resist trying to guess!
+- If ABC/numbers: Fast energetic counting countdowns, magic shapes, or mystery rhyming words!
 
 TOPICS ALREADY USED (NEVER repeat or make similar):
 {used_str}
@@ -129,12 +137,12 @@ TOPICS ALREADY USED (NEVER repeat or make similar):
 REQUIREMENTS:
 - Safe, 100% G-rated, fun, exciting.
 - NO mentions of 'Part 1' or 'Part 2'.
-- topic: Catchy title (max 50 chars)
+- topic: Catchy, viral title (max 50 chars)
 - category: "{category}"
-- subject: Single noun for 3D cartoon mascot (e.g. monkey, dragon, fish, lion, rabbit, sun, robot, bee, car, dinosaur)
-- hook: Exciting 1-sentence hook.
-- video_query: Search query for background stock video.
-- veo_prompt: 3D cartoon Pixar/Disney style prompt.
+- subject: Single noun for 3D cartoon mascot (e.g. monkey, dragon, fairy, fish, lion, rabbit, sun, robot, bee, car, dinosaur, flamingo)
+- hook: Irresistible 1-sentence curiosity hook that grabs kids instantly!
+- video_query: High-impact search query for background video.
+- veo_prompt: 3D cartoon Pixar/Disney style prompt (vertical 9:16).
 - color_scheme: Two vibrant hex colors.
 
 Return ONLY raw valid JSON:

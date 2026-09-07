@@ -330,7 +330,8 @@ def _build_part_video(
     bg_video_path: str | None,
     bg_image: Image.Image | None,
     colors: list,
-    output_path: str
+    output_path: str,
+    topic_data: dict | None = None
 ):
     """Assemble final MP4 for Part 1 or Part 2."""
     import imageio_ffmpeg

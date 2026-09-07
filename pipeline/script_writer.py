@@ -1,4 +1,4 @@
-﻿"""
+"""
 script_writer.py - Generates highly engaging, standalone scripts for Part 1 and Part 2.
 Each script is completely tailored to its specific topic and category
 (fairy tales, science facts, funny stories, riddles, ABC/numbers, etc.).
@@ -10,10 +10,12 @@ from google import genai
 logger = logging.getLogger(__name__)
 
 GEMINI_MODELS = [
-    "gemini-3.6-flash",
+    "gemini-3.5-flash",
     "gemini-3.7-flash",
     "gemini-3.8-flash",
-    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
 ]
 
 

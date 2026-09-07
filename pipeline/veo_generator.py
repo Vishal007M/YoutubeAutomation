@@ -1,4 +1,4 @@
-﻿"""
+"""
 veo_generator.py - Optional Gemini Veo AI video generation integration.
 Tries to generate custom video using Google Veo models if available/funded,
 with graceful fallback if quota or feature is unavailable.
@@ -31,7 +31,7 @@ def try_generate_veo_video(config: dict, prompt: str, output_path: str) -> str |
             prompt=prompt,
             config=types.GenerateVideosConfig(
                 aspect_ratio="9:16",
-                duration_seconds=5
+                duration_seconds=6
             )
         )
 
