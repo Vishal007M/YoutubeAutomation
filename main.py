@@ -69,11 +69,11 @@ def main():
 
     # ── Imports (after FFmpeg path is set via imageio_ffmpeg in video_composer)
     from pipeline.history_manager import HistoryManager
-    from pipeline.trend_finder    import find_trending_topic
-    from pipeline.script_writer   import write_script
+    from pipeline.trend_finder    import find_two_different_topics
+    from pipeline.script_writer   import write_dual_scripts
     from pipeline.audio_maker     import generate_audio
     from pipeline.video_composer  import create_video_parts
-    from pipeline.metadata_gen    import generate_metadata
+    from pipeline.metadata_gen    import generate_metadata_for_two_topics
     from pipeline.uploader        import upload_to_youtube
 
     history    = HistoryManager(config.get("history_db", "history.db"))
@@ -85,33 +85,36 @@ def main():
 
     try:
         # ── Step 1 ────────────────────────────────────────────────────────────
-        print("\n🔍  Step 1/6  Finding a unique trending topic…")
-        topic_data = find_trending_topic(config, history)
-        print(f"   ✅  Topic : {topic_data['topic']} {topic_data.get('emoji','')}")
-        print(f"   💡  Hook  : {topic_data.get('hook','')[:70]}")
+        print("\n🔍  Step 1/6  Selecting two DIFFERENT categories and topics…")
+        topic1_data, topic2_data = find_two_different_topics(config, history)
+        print(f"   ✅  Part 1 [{topic1_data['category'].upper()}]: {topic1_data['topic']}")
+        print(f"   💡  Hook 1 : {topic1_data.get('hook','')[:70]}")
+        print(f"   ✅  Part 2 [{topic2_data['category'].upper()}]: {topic2_data['topic']}")
+        print(f"   💡  Hook 2 : {topic2_data.get('hook','')[:70]}")
 
         # ── Step 2 ────────────────────────────────────────────────────────────
-        print("\n✍️   Step 2/6  Writing script with Gemini AI…")
-        script_data = write_script(config, topic_data)
-        w = len(script_data["full_script"].split())
-        print(f"   ✅  Script ready ({w} words)")
-        print(f"   📝  Part 1: {script_data['part1_script'][:60]}…")
+        print("\n✍️   Step 2/6  Writing two standalone scripts with Gemini AI…")
+        script_data = write_dual_scripts(config, topic1_data, topic2_data)
+        w1 = len(script_data["part1_script"].split())
+        w2 = len(script_data["part2_script"].split())
+        print(f"   ✅  Script 1 ready ({w1} words): {script_data['part1_script'][:60]}…")
+        print(f"   ✅  Script 2 ready ({w2} words): {script_data['part2_script'][:60]}…")
 
         # ── Step 3 ────────────────────────────────────────────────────────────
-        print("\n🎙️   Step 3/6  Generating voice narration (edge-tts)…")
+        print("\n🎙️   Step 3/6  Generating voice narrations (natural human pacing)…")
         audio_paths = generate_audio(config, script_data)
         print(f"   ✅  Part 1 audio: {audio_paths[0]}")
         print(f"   ✅  Part 2 audio: {audio_paths[1]}")
 
         # ── Step 4 ────────────────────────────────────────────────────────────
-        print("\n🎬  Step 4/6  Building 9:16 Short videos…  (takes ~1-2 min)")
-        video_paths = create_video_parts(config, script_data, topic_data, audio_paths)
+        print("\n🎬  Step 4/6  Building 2 distinct 9:16 Short videos…")
+        video_paths = create_video_parts(config, script_data, (topic1_data, topic2_data), audio_paths)
         print(f"   ✅  Part 1 MP4: {video_paths[0]}")
         print(f"   ✅  Part 2 MP4: {video_paths[1]}")
 
         # ── Step 5 ────────────────────────────────────────────────────────────
-        print("\n📝  Step 5/6  Generating SEO metadata with Gemini AI…")
-        metadata_list = generate_metadata(config, topic_data, script_data)
+        print("\n📝  Step 5/6  Generating SEO metadata for both videos…")
+        metadata_list = generate_metadata_for_two_topics(config, topic1_data, topic2_data, script_data)
         print(f"   ✅  Title 1 : {metadata_list[0]['title']}")
         print(f"   ✅  Title 2 : {metadata_list[1]['title']}")
 
@@ -129,9 +132,13 @@ def main():
 
         # ── Save to history (even partial success) ────────────────────────────
         history.add_topic(
-            topic_data["topic"],
-            topic_data.get("category", ""),
+            topic1_data["topic"],
+            topic1_data.get("category", ""),
             vid_ids[0] if len(vid_ids) > 0 else "",
+        )
+        history.add_topic(
+            topic2_data["topic"],
+            topic2_data.get("category", ""),
             vid_ids[1] if len(vid_ids) > 1 else "",
         )
 

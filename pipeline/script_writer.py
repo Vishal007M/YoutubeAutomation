@@ -1,6 +1,7 @@
 ﻿"""
-script_writer.py - Generates highly engaging, fun, kid-friendly scripts for Shorts.
-Uses dynamic storytelling, excitement, and clear pacing for young kids.
+script_writer.py - Generates highly engaging, standalone scripts for Part 1 and Part 2.
+Each script is completely tailored to its specific topic and category
+(fairy tales, science facts, funny stories, riddles, ABC/numbers, etc.).
 """
 import json
 import logging
@@ -8,42 +9,76 @@ from google import genai
 
 logger = logging.getLogger(__name__)
 
+GEMINI_MODELS = [
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+]
 
-def write_script(config, topic_data):
-    """Generate an enthusiastic kids script split into Part 1 and Part 2."""
+
+def _call_gemini_resilient(client, prompt: str) -> str:
+    for model_name in GEMINI_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception as e:
+            logger.warning(f"Script model {model_name} note ({e}), trying next...")
+    raise RuntimeError("All Gemini models temporarily unavailable")
+
+
+def write_dual_scripts(config, topic1_data, topic2_data):
+    """
+    Generate two standalone, exciting scripts for Topic 1 and Topic 2.
+    Each script is 30-38 words (~10-14s), perfectly tailored to its category.
+    Returns: {"part1_script": str, "part2_script": str, "full_script": str}
+    """
     client = genai.Client(api_key=config["gemini_api_key"])
 
-    duration    = config.get("video_duration_seconds", 20)
-    total_words = int(duration * 2.5)   # ~2.5 words/sec pace
-    half_words  = total_words // 2
+    cat1 = topic1_data.get("category", "fun facts")
+    top1 = topic1_data.get("topic", "Super Fun Story")
+    hook1 = topic1_data.get("hook", "Look at this amazing adventure!")
 
-    prompt = f"""You are a professional children's TV host (like Blippi or Bluey) writing an ultra-fun YouTube Shorts script for kids aged 3-8.
+    cat2 = topic2_data.get("category", "fairy tales")
+    top2 = topic2_data.get("topic", "Magical Tale")
+    hook2 = topic2_data.get("hook", "Once upon a time in a magic world!")
 
-Topic: {topic_data["topic"]}
-Subject: {topic_data.get("subject", "nature")}
-Hook: {topic_data["hook"]}
+    prompt = f"""You are a top children's animator writing scripts for TWO SEPARATE YouTube Shorts for kids aged 3-8.
 
-STYLE REQUIREMENTS:
-- Super enthusiastic, high energy, and friendly!
-- Start with an exciting exclamation ("Whoa!", "Guess what?", "Look!")
-- Use very simple words a 4-year-old understands easily
-- Punchy, short sentences (max 8-10 words each)
-- Absolutely NO emojis or special symbols in the text
-- Part 1 (~{half_words} words): Deliver the hook and 2 crazy fun facts that blow kids' minds!
-- Part 2 (~{half_words} words): Give 2 more unbelievable facts, then end with "Subscribe for more awesome fun facts!"
+SHORT 1:
+- Category: {cat1}
+- Topic: {top1}
+- Hook: {hook1}
+
+SHORT 2:
+- Category: {cat2} (DIFFERENT CATEGORY!)
+- Topic: {top2}
+- Hook: {hook2}
+
+RULES FOR EACH SCRIPT:
+- Must be a COMPLETE, standalone fun short story/fact/riddle (30-38 words, ~12 seconds of voiceover).
+- Tailored specifically to its category:
+  * If riddle: Ask the riddle question with excitement, pause 2 seconds, give the fun answer!
+  * If fairy tale: Mini story with magical twist and happy moral!
+  * If funny story: Silly situation with a hilarious punchline that makes kids giggle!
+  * If science fact: Mind-blowing secret fact with simple kid-friendly explanation!
+  * If ABC/numbers: Catchy rhyme or counting surprise!
+- Super enthusiastic, high energy!
+- Short sentences (max 8-10 words each).
+- End with a friendly call to subscribe/follow!
+- Absolutely NO emojis, NO special symbols.
 
 Return ONLY raw valid JSON (no markdown fences, no triple backticks):
 {{
-    "part1_script": "Whoa! Look at this! Did you know giraffes have necks as long as a whole school bus? That is huge! Their tongues are super long and dark purple to eat prickly acacia leaves! Wow!",
-    "part2_script": "Guess what else! Baby giraffes can stand up and run just thirty minutes after being born! And adult giraffes only sleep thirty minutes a day! Subscribe for more awesome fun facts!"
+  "part1_script": "Whoa! Benny the puppy blew a bubble so giant it lifted him into the sky! He floated past the birds and landed safely in a fluffy flower bush! That was hilarious! Subscribe for more funny stories!",
+  "part2_script": "Once upon a time, a tiny mouse saw a giant dragon crying because of a splinter! The brave mouse pulled it out and they became best friends forever! Subscribe for more fairy tales!"
 }}"""
 
     try:
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt,
-        )
-        text = response.text.strip()
+        text = _call_gemini_resilient(client, prompt)
 
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
@@ -51,29 +86,34 @@ Return ONLY raw valid JSON (no markdown fences, no triple backticks):
             text = text.split("```")[1].split("```")[0].strip()
 
         data = json.loads(text)
-        p1   = data.get("part1_script", "").strip()
-        p2   = data.get("part2_script", "").strip()
+        p1 = data.get("part1_script", "").strip()
+        p2 = data.get("part2_script", "").strip()
 
         if not p1 or not p2:
-            raise ValueError("Empty script parts returned")
+            raise ValueError("Empty script returned")
 
-        result = {"part1_script": p1, "part2_script": p2, "full_script": p1 + " " + p2}
-        logger.info(f"Script generated ({len(result['full_script'].split())} words)")
+        result = {
+            "part1_script": p1,
+            "part2_script": p2,
+            "full_script": p1 + " " + p2
+        }
+        logger.info(f"Generated Script 1: {len(p1.split())} words | Script 2: {len(p2.split())} words")
         return result
 
     except Exception as e:
-        logger.warning(f"Script generation failed ({e}), using fallback")
-        hook = topic_data.get("hook", "Whoa! This is super amazing!")
-        p1 = (
-            f"Whoa! {hook} "
-            "Nature has so many crazy surprises waiting for you! "
-            "Scientists discovered this and everyone was completely shocked! "
-            "Are you ready to learn the secret?"
-        )
-        p2 = (
-            "Here is another crazy fact! "
-            "This happens every single day right here on our planet! "
-            "Learning new things is the best superpower ever! "
-            "Subscribe for more awesome fun facts every single day!"
-        )
-        return {"part1_script": p1, "part2_script": p2, "full_script": p1 + " " + p2}
+        logger.warning(f"Dual script generation failed ({e}), using fallback")
+        p1 = f"{hook1} The world is full of hilarious surprises! Keep laughing and being curious my friend! Subscribe for more awesome fun daily!"
+        p2 = f"{hook2} Always be kind and brave no matter how small you are! Subscribe for more magical adventures every single day!"
+        return {
+            "part1_script": p1,
+            "part2_script": p2,
+            "full_script": p1 + " " + p2
+        }
+
+
+# Backwards compatibility alias
+def write_script(config, topic_data):
+    if isinstance(topic_data, tuple) or isinstance(topic_data, list):
+        return write_dual_scripts(config, topic_data[0], topic_data[1])
+    # Fallback if called with single topic
+    return write_dual_scripts(config, topic_data, topic_data)

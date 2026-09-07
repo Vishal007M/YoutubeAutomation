@@ -1,6 +1,6 @@
-"""
-metadata_gen.py - Generates SEO-optimised YouTube title, description, and tags
-for both video parts using Gemini AI (google-genai SDK).
+﻿"""
+metadata_gen.py - Generates SEO-optimised YouTube titles, descriptions, and tags
+for Part 1 and Part 2, each tailored to its specific topic and category.
 """
 import json
 import logging
@@ -8,51 +8,80 @@ from google import genai
 
 logger = logging.getLogger(__name__)
 
+GEMINI_MODELS = [
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+]
 
-def generate_metadata(config, topic_data, script_data):
+
+def _call_gemini_resilient(client, prompt: str) -> str:
+    for model_name in GEMINI_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception as e:
+            logger.warning(f"Metadata model {model_name} note ({e}), trying next...")
+    raise RuntimeError("All Gemini models temporarily unavailable")
+
+
+def generate_metadata_for_two_topics(config, topic1_data, topic2_data, script_data):
     """
-    Generate YouTube metadata for Part 1 and Part 2.
-    Returns: [part1_meta_dict, part2_meta_dict]
+    Generate YouTube Shorts metadata for Part 1 and Part 2 with distinct topics.
+    Returns: [part1_meta, part2_meta]
     """
-    client  = genai.Client(api_key=config["gemini_api_key"])
+    client = genai.Client(api_key=config["gemini_api_key"])
     channel = config.get("channel_name", "Kids Fun Zone")
-    topic   = topic_data["topic"]
 
-    prompt = f"""You are a YouTube SEO expert specialising in kids educational Shorts.
+    t1_title = topic1_data.get("topic", "Fun Kids Short 1")
+    t1_cat = topic1_data.get("category", "kids")
+    p1_script = script_data.get("part1_script", "")
 
-Topic  : {topic}
+    t2_title = topic2_data.get("topic", "Fun Kids Short 2")
+    t2_cat = topic2_data.get("category", "kids")
+    p2_script = script_data.get("part2_script", "")
+
+    prompt = f"""You are a YouTube SEO expert specialising in kids educational and entertainment Shorts.
+
 Channel: {channel}
-Part 1 script (first 200 chars): {script_data["part1_script"][:200]}
-Part 2 script (first 200 chars): {script_data["part2_script"][:200]}
 
-Create YouTube Shorts metadata for BOTH parts.
+VIDEO 1:
+- Category: {t1_cat}
+- Topic: {t1_title}
+- Script: {p1_script}
 
-Rules:
-- Titles: max 70 chars, catchy, include "Part 1" and "Part 2", include #Shorts
-- Descriptions: 150-280 chars, keyword-rich, end with "Follow for more!" include #Shorts #Kids
-- Tags: exactly 10 tags, mix of broad ("kids shorts") and specific ("cat facts for kids")
-- Use emojis in titles and descriptions to boost click-through
+VIDEO 2:
+- Category: {t2_cat}
+- Topic: {t2_title}
+- Script: {p2_script}
 
-Return ONLY raw valid JSON (no markdown, no triple backticks):
+Create catchy YouTube Shorts metadata for BOTH videos.
+
+RULES:
+- Titles: max 65 chars, catchy, start with topic, include category emoji, include #Shorts.
+- Descriptions: 150-250 chars, engaging, include #Shorts #Kids #{t1_cat.replace(' ', '')} and end with "Subscribe for more!".
+- Tags: 8-12 high-traffic tags for each.
+
+Return ONLY raw valid JSON (no markdown fences, no triple backticks):
 {{
-    "part1": {{
-        "title": "Why Giraffes Have Long Necks! Part 1 #Shorts",
-        "description": "Did you know a giraffe neck is as long as a school bus? Mind-blowing animal facts for curious kids! Like and Follow for more daily fun facts! #Shorts #Kids #Animals #FunFacts",
-        "tags": ["giraffe facts", "animals for kids", "kids shorts", "fun facts for kids", "educational shorts", "amazing animals", "kids learning", "animal facts", "shorts for kids", "giraffe"]
-    }},
-    "part2": {{
-        "title": "Why Giraffes Have Long Necks! Part 2 #Shorts",
-        "description": "Baby giraffes are taller than adults the day they are born! More incredible giraffe facts for kids! Follow for daily amazing facts! #Shorts #Kids #Animals #FunFacts",
-        "tags": ["giraffe facts", "animals for kids", "kids shorts", "fun facts for kids", "educational shorts", "amazing animals", "kids learning", "animal facts", "shorts for kids", "giraffe"]
-    }}
+  "part1": {{
+    "title": "{t1_title[:50]}! 🌟 #Shorts",
+    "description": "Watch this super exciting {t1_cat} short for kids! Learn, laugh, and explore! Subscribe for more daily kids fun! #Shorts #Kids #FunFacts",
+    "tags": ["kids shorts", "shorts for kids", "{t1_cat}", "fun for kids", "educational shorts"]
+  }},
+  "part2": {{
+    "title": "{t2_title[:50]}! ✨ #Shorts",
+    "description": "Another amazing {t2_cat} adventure! Like and follow for magical daily shorts! #Shorts #Kids #FunFacts",
+    "tags": ["kids shorts", "shorts for kids", "{t2_cat}", "fun for kids", "educational shorts"]
+  }}
 }}"""
 
     try:
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt,
-        )
-        text = response.text.strip()
+        text = _call_gemini_resilient(client, prompt)
 
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
@@ -64,33 +93,32 @@ Return ONLY raw valid JSON (no markdown, no triple backticks):
 
         for m in meta:
             if "#Shorts" not in m["title"] and "#shorts" not in m["title"]:
-                m["title"] = m["title"][:65] + " #Shorts"
-            m["title"]       = m["title"][:100]
+                m["title"] = m["title"][:60] + " #Shorts"
+            m["title"] = m["title"][:100]
             m["description"] = m["description"][:5000]
-            m["tags"]        = m["tags"][:15]
+            m["tags"] = m["tags"][:15]
 
-        logger.info(f"Metadata ready: {meta[0]['title']}")
+        logger.info(f"Metadata ready: '{meta[0]['title']}' & '{meta[1]['title']}'")
         return meta
 
     except Exception as e:
         logger.warning(f"Metadata generation failed ({e}), using fallback")
-        base = topic[:50]
-        common_tags = ["kids shorts", "fun facts for kids", "educational", "children",
-                       "learning", "amazing facts", "kids content", "shorts", "kids",
-                       topic.lower().split()[0] if topic else "facts"]
         return [
             {
-                "title":       f"{base} - Fun Facts! Part 1 #Shorts",
-                "description": (f"Amazing facts about {topic} for kids! Part 1 of 2. "
-                                f"Educational and fun! Follow for more daily facts! "
-                                f"#Shorts #Kids #Educational #FunFacts"),
-                "tags": common_tags,
+                "title": f"{t1_title[:50]}! #Shorts",
+                "description": f"Exciting {t1_cat} for kids! Subscribe for daily fun shorts! #Shorts #Kids #{t1_cat.replace(' ', '')}",
+                "tags": ["kids shorts", "shorts for kids", t1_cat, "fun facts for kids", "kids learning"]
             },
             {
-                "title":       f"{base} - Fun Facts! Part 2 #Shorts",
-                "description": (f"More amazing facts about {topic} for kids! Part 2 of 2. "
-                                f"Follow for daily fun educational shorts! "
-                                f"#Shorts #Kids #Educational #FunFacts"),
-                "tags": common_tags,
-            },
+                "title": f"{t2_title[:50]}! #Shorts",
+                "description": f"Amazing {t2_cat} adventure for kids! Subscribe for more daily videos! #Shorts #Kids #{t2_cat.replace(' ', '')}",
+                "tags": ["kids shorts", "shorts for kids", t2_cat, "fun facts for kids", "kids learning"]
+            }
         ]
+
+
+# Backwards compatibility alias
+def generate_metadata(config, topic_data, script_data):
+    if isinstance(topic_data, tuple) or isinstance(topic_data, list):
+        return generate_metadata_for_two_topics(config, topic_data[0], topic_data[1], script_data)
+    return generate_metadata_for_two_topics(config, topic_data, topic_data, script_data)

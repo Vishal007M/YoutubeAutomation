@@ -186,7 +186,7 @@ def _render_short_frame(
     character_img: Image.Image,
     title: str,
     caption: str,
-    part_num: int,
+    badge_text: str,
     t: float,
     duration: float
 ) -> np.ndarray:
@@ -226,12 +226,11 @@ def _render_short_frame(
     draw = ImageDraw.Draw(frame)
 
     # 2. Top Badges
-    badge_font = _get_font("bold", 38)
-    badge_text = f"PART {part_num} of 2"
+    badge_font = _get_font("bold", 34)
     bb = draw.textbbox((0, 0), badge_text, font=badge_font)
-    bw, bh = (bb[2] - bb[0]) + 40, (bb[3] - bb[1]) + 22
+    bw, bh = (bb[2] - bb[0]) + 36, (bb[3] - bb[1]) + 20
     draw.rounded_rectangle([35, 50, 35 + bw, 50 + bh], radius=16, fill=(255, 195, 0))
-    draw.text((35 + 20, 50 + 11), badge_text, font=badge_font, fill=(15, 15, 15))
+    draw.text((35 + 18, 50 + 10), badge_text, font=badge_font, fill=(15, 15, 15))
 
     kz_font = _get_font("bold", 34)
     kz_text = "KIDS ZONE"
@@ -369,15 +368,16 @@ def _build_part_video(
     phrases = _split_into_phrases(script, target_words=5)
     spf = duration / len(phrases)
 
+    category = topic_data.get("category", "").strip()
+    badge_label = f"PART {part_num} • {category.upper()}" if category else f"PART {part_num} of 2"
+
     def make_frame(t):
         # 1. Get base frame
         if bg_clip is not None:
-            # Loop background if video is shorter than audio
             t_loop = t % bg_clip.duration if bg_clip.duration > 0 else 0
             raw_frame = bg_clip.get_frame(t_loop)
             bg_img = Image.fromarray(raw_frame)
         elif bg_image is not None:
-            # Ken Burns slow zoom
             scale = 1.0 + 0.08 * (t / duration)
             nw, nh = int(W * scale), int(H * scale)
             zoomed = bg_image.resize((nw, nh), Image.BILINEAR)
@@ -392,7 +392,7 @@ def _build_part_video(
         cur_phrase = phrases[idx]
 
         return _render_short_frame(
-            bg_img, character_img, title, cur_phrase, part_num, t, duration
+            bg_img, character_img, title, cur_phrase, badge_label, t, duration
         )
 
     clip = VideoClip(make_frame, duration=duration)
@@ -401,7 +401,7 @@ def _build_part_video(
     out_dir = os.path.dirname(output_path) or "output"
     temp_audio = os.path.join(out_dir, f"temp_snd_part_{part_num}.m4a")
 
-    logger.info(f"Rendering Part {part_num} -> {output_path} ({duration:.1f}s)")
+    logger.info(f"Rendering Part {part_num} ({badge_label}) -> {output_path} ({duration:.1f}s)")
     clip.write_videofile(
         output_path,
         codec="libx264",
@@ -422,28 +422,23 @@ def _build_part_video(
     return output_path
 
 
-def create_video_parts(config: dict, script_data: dict,
-                       topic_data: dict, audio_paths: tuple) -> list[str]:
-    """
-    Generate Part 1 and Part 2 high-quality animated YouTube Shorts.
-    Returns: [part1_mp4_path, part2_mp4_path]
-    """
+def _prepare_part(config: dict, topic_data: dict, script: str, part_num: int, audio_path: str, output_path: str):
+    """Fetch visuals and render one complete Short."""
     output_dir = config.get("output_dir", "output")
-    os.makedirs(output_dir, exist_ok=True)
-
-    title = topic_data.get("topic", "Fun Kids Facts")
+    title = topic_data.get("topic", "Fun Kids Short")
     subject = topic_data.get("subject", "star")
-    colors = topic_data.get("color_scheme", DEFAULT_PALETTES[0])
-    video_query = topic_data.get("video_query", f"{subject} cute cartoon")
-    veo_prompt = topic_data.get("veo_prompt", f"A cute 3D cartoon {subject} smiling, Disney Pixar style, 9:16 vertical")
+    category = topic_data.get("category", "kids")
+    colors = topic_data.get("color_scheme", DEFAULT_PALETTES[part_num % len(DEFAULT_PALETTES)])
+    video_query = topic_data.get("video_query", f"{subject} {category} cartoon cute")
+    veo_prompt = topic_data.get("veo_prompt", f"A cute 3D cartoon {subject} in {category}, Disney Pixar style, 9:16 vertical")
 
     # 1. Try Gemini Veo AI Video Generation
-    veo_video = os.path.join(output_dir, "veo_bg.mp4")
+    veo_video = os.path.join(output_dir, f"veo_bg_p{part_num}.mp4")
     bg_video_path = try_generate_veo_video(config, veo_prompt, veo_video)
 
     # 2. If Veo not available, download Pexels HD Portrait Video
     if not bg_video_path:
-        pexels_vid = os.path.join(output_dir, "pexels_bg.mp4")
+        pexels_vid = os.path.join(output_dir, f"pexels_bg_p{part_num}.mp4")
         bg_video_path = _download_pexels_video(config.get("pexels_api_key", ""), video_query, pexels_vid)
 
     # 3. If no video, fetch Pexels HD Image for Ken Burns effect
@@ -451,16 +446,37 @@ def create_video_parts(config: dict, script_data: dict,
     if not bg_video_path:
         bg_image = _download_pexels_image(config.get("pexels_api_key", ""), video_query)
 
+    return _build_part_video(
+        config, title, subject, script, part_num, audio_path, bg_video_path, bg_image, colors, output_path, topic_data=topic_data
+    )
+
+
+def create_video_parts(config: dict, script_data: dict,
+                       topic_data: dict | tuple | list, audio_paths: tuple,
+                       topic2_data: dict | None = None) -> list[str]:
+    """
+    Generate Part 1 and Part 2 high-quality animated YouTube Shorts.
+    Supports dual distinct topics for Part 1 and Part 2.
+    Returns: [part1_mp4_path, part2_mp4_path]
+    """
+    output_dir = config.get("output_dir", "output")
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Resolve topic1 and topic2
+    if isinstance(topic_data, (tuple, list)):
+        t1 = topic_data[0]
+        t2 = topic_data[1] if len(topic_data) > 1 else topic_data[0]
+    elif topic2_data is not None:
+        t1 = topic_data
+        t2 = topic2_data
+    else:
+        t1 = topic_data
+        t2 = topic_data
+
     p1 = os.path.join(output_dir, "part1.mp4")
     p2 = os.path.join(output_dir, "part2.mp4")
 
-    _build_part_video(
-        config, title, subject, script_data["part1_script"],
-        1, audio_paths[0], bg_video_path, bg_image, colors, p1
-    )
-    _build_part_video(
-        config, title, subject, script_data["part2_script"],
-        2, audio_paths[1], bg_video_path, bg_image, colors, p2
-    )
+    _prepare_part(config, t1, script_data["part1_script"], 1, audio_paths[0], p1)
+    _prepare_part(config, t2, script_data["part2_script"], 2, audio_paths[1], p2)
 
     return [p1, p2]
