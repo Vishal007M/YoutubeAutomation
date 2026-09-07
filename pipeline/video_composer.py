@@ -1,4 +1,4 @@
-﻿"""
+"""
 video_composer.py
 =================
 Next-Gen 9:16 Kids YouTube Shorts Video Engine (1080x1920)
@@ -398,11 +398,17 @@ def _build_part_video(
     clip = VideoClip(make_frame, duration=duration)
     clip = clip.with_audio(audio).with_fps(FPS)
 
+    out_dir = os.path.dirname(output_path) or "output"
+    temp_audio = os.path.join(out_dir, f"temp_snd_part_{part_num}.m4a")
+
     logger.info(f"Rendering Part {part_num} -> {output_path} ({duration:.1f}s)")
     clip.write_videofile(
         output_path,
         codec="libx264",
         audio_codec="aac",
+        temp_audiofile=temp_audio,
+        temp_audiofile_path=out_dir,
+        remove_temp=True,
         fps=FPS,
         preset="ultrafast",
         logger=None,

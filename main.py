@@ -151,7 +151,9 @@ def main():
         print(f"📋  Check log for details: {log_file}")
 
     finally:
-        # Clean up temp files
+        # Clean up temp media files
+        import glob
+        out_dir = config.get("output_dir", "output")
         for paths in [video_paths, audio_paths]:
             if paths:
                 for p in paths:
@@ -160,7 +162,20 @@ def main():
                             os.remove(p)
                         except Exception:
                             pass
-        logger.info("Cleanup done. Goodbye!")
+        # Clean up any temporary backgrounds or MoviePy working files
+        temp_patterns = [
+            os.path.join(out_dir, "*_bg.mp4"),
+            os.path.join(out_dir, "temp_snd_*"),
+            "*TEMP_MPY*",
+            os.path.join(out_dir, "*TEMP_MPY*")
+        ]
+        for pat in temp_patterns:
+            for f in glob.glob(pat):
+                try:
+                    os.remove(f)
+                except Exception:
+                    pass
+        logger.info("Cleanup complete. Goodbye!")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-﻿"""
+"""
 character_manager.py - Loads and manages high-quality 3D cartoon characters/mascots
 from the Microsoft Fluent 3D Emoji library (1,500+ Pixar/Disney style 3D assets).
 Eliminates missing font glyphs (broken boxes) and gives kids a fun visual host.
@@ -11,7 +11,7 @@ from PIL import Image, ImageFilter
 
 logger = logging.getLogger(__name__)
 
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets_cache")
+CACHE_DIR = os.path.join(os.path.dirname(__file__), "assets_cache")
 TREE_FILE = os.path.join(os.path.dirname(__file__), "fluent_tree.json")
 
 
