@@ -1,1 +1,5 @@
+cd "C:\Users\visha\Downloads\YoutubeAutomation" ; python setup_youtube_auth.py
+
+or
+
 python main.py

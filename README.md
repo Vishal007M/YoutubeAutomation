@@ -1,4 +1,4 @@
-﻿# 🎬 YouTube Kids Shorts — AI Automation
+# 🎬 YouTube Kids Shorts — AI Automation
 
 > One command. Two daily Shorts. Zero repetition. Forever.
 
@@ -101,18 +101,19 @@ Just copy these 4 files to the new machine, run `python setup.py` once, done.
 
 ---
 
-## Video Specs
+## Video Specs & Visual Features
 
 | Setting | Value |
 |---------|-------|
 | Aspect Ratio | 9:16 (vertical Shorts) |
-| Resolution | 1080 × 1920 px |
+| Resolution | 1080 × 1920 px (Full HD) |
 | FPS | 30 |
 | Duration | ~10 sec each part |
-| Audio | Kid-friendly AI voice (edge-tts) |
-| Captions | Animated sentence-by-sentence |
-| Background | Pexels image or colour gradient |
-| Category | Education (Kids Safe) |
+| 3D Mascot | High-res Pixar/Disney style 3D cartoon character (1,500+ assets) with floating animation |
+| Backgrounds | Gemini Veo AI Video -> Pexels HD Vertical Video -> Ken Burns Animated Photo |
+| Subtitles | Shorts Safe-Zone (Y=1140-1360), high-contrast rounded pill box with stroke |
+| Voiceover | Natural human conversational voice (`en-US-AvaNeural`) with +15% energetic pacing |
+| Category | Education (Kids Safe, selfDeclaredMadeForKids = True) |
 
 ---
 
