@@ -1,0 +1,16 @@
+{
+  "_readme": "Fill in your API keys below and rename to config.json",
+  "gemini_api_key": "YOUR_GEMINI_API_KEY_HERE",
+  "pexels_api_key": "YOUR_PEXELS_API_KEY_HERE",
+  "channel_name": "Kids Fun Zone",
+  "target_language": "English",
+  "video_duration_seconds": 20,
+  "tts_voice": "en-US-AnaNeural",
+  "youtube_client_secrets_path": "client_secrets.json",
+  "youtube_token_path": "token.json",
+  "video_category_id": "27",
+  "privacy_status": "public",
+  "output_dir": "output",
+  "logs_dir": "logs",
+  "history_db": "history.db"
+}

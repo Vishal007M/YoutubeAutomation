@@ -1,0 +1,20 @@
+# Credentials & Secrets
+config.json
+client_secrets.json
+token.json
+
+# Local database & temp media
+history.db
+output/
+logs/
+
+# Python cache & env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+env/
+.idea/
+.vscode/
