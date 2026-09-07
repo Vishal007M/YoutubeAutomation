@@ -69,7 +69,7 @@ def main():
 
     # ── Imports (after FFmpeg path is set via imageio_ffmpeg in video_composer)
     from pipeline.history_manager import HistoryManager
-    from pipeline.trend_finder    import find_two_different_topics
+    from pipeline.trend_finder    import select_topics_for_run
     from pipeline.script_writer   import write_dual_scripts
     from pipeline.audio_maker     import generate_audio
     from pipeline.video_composer  import create_video_parts
@@ -85,11 +85,10 @@ def main():
 
     try:
         # ── Step 1 ────────────────────────────────────────────────────────────
-        print("\n🔍  Step 1/6  Selecting two DIFFERENT categories and topics…")
-        topic1_data, topic2_data = find_two_different_topics(config, history)
-        print(f"   ✅  Part 1 [{topic1_data['category'].upper()}]: {topic1_data['topic']}")
+        topic1_data, topic2_data = select_topics_for_run(config, history)
+        print(f"\n   ✅  Video 1 [{topic1_data['category'].upper()}]: {topic1_data['topic']}")
         print(f"   💡  Hook 1 : {topic1_data.get('hook','')[:70]}")
-        print(f"   ✅  Part 2 [{topic2_data['category'].upper()}]: {topic2_data['topic']}")
+        print(f"   ✅  Video 2 [{topic2_data['category'].upper()}]: {topic2_data['topic']}")
         print(f"   💡  Hook 2 : {topic2_data.get('hook','')[:70]}")
 
         # ── Step 2 ────────────────────────────────────────────────────────────
@@ -103,14 +102,14 @@ def main():
         # ── Step 3 ────────────────────────────────────────────────────────────
         print("\n🎙️   Step 3/6  Generating voice narrations (natural human pacing)…")
         audio_paths = generate_audio(config, script_data)
-        print(f"   ✅  Part 1 audio: {audio_paths[0]}")
-        print(f"   ✅  Part 2 audio: {audio_paths[1]}")
+        print(f"   ✅  Video 1 audio: {audio_paths[0]}")
+        print(f"   ✅  Video 2 audio: {audio_paths[1]}")
 
         # ── Step 4 ────────────────────────────────────────────────────────────
         print("\n🎬  Step 4/6  Building 2 distinct 9:16 Short videos…")
         video_paths = create_video_parts(config, script_data, (topic1_data, topic2_data), audio_paths)
-        print(f"   ✅  Part 1 MP4: {video_paths[0]}")
-        print(f"   ✅  Part 2 MP4: {video_paths[1]}")
+        print(f"   ✅  Video 1 MP4: {video_paths[0]}")
+        print(f"   ✅  Video 2 MP4: {video_paths[1]}")
 
         # ── Step 5 ────────────────────────────────────────────────────────────
         print("\n📝  Step 5/6  Generating SEO metadata for both videos…")
@@ -125,10 +124,10 @@ def main():
         vid_ids = []
         for r in results:
             if "url" in r:
-                print(f"   ✅  Part {r['part']}: {r['url']}")
+                print(f"   ✅  Video {r['part']}: {r['url']}")
                 vid_ids.append(r.get("video_id", ""))
             else:
-                print(f"   ⚠️   Part {r['part']} upload error: {r.get('error','unknown')}")
+                print(f"   ⚠️   Video {r['part']} upload error: {r.get('error','unknown')}")
 
         # ── Save to history (even partial success) ────────────────────────────
         history.add_topic(

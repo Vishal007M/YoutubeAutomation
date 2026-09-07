@@ -41,20 +41,27 @@ python setup_youtube_auth.py
 ```
 A browser opens → sign in → done. Token auto-refreshes forever.
 
-### Step 4 — Run!
-```
+## Daily Usage
+
+Every time you run:
+```bash
 python main.py
 ```
 
----
-
-## Auto-Run Every Day (Optional)
-
-Set it once, forget it:
+You will see an interactive menu to choose topics for today's **2 Shorts**:
 ```
-python schedule_daily.py 09:00
+   [1] 🏰 Fairy Tales
+   [2] 🔬 Science Facts
+   [3] 😂 Funny Stories
+   [4] 🧩 Riddles
+   [5] 🔤 ABC / Numbers
+   [6] 🎲 Random (Let Gemini pick a fresh trending topic)
+   [7] ✍️  Other / Custom (Type your own topic!)
 ```
-This registers a Windows Task that runs `main.py` at 9 AM every day automatically.
+- Choose any category for **Video 1** (or type your own custom topic with `7`!)
+- Choose any category for **Video 2** (or type a second custom topic with `7`!)
+- Or simply press **Enter** for full auto-pilot — Gemini picks two distinct categories!
+- Both videos are completely independent Shorts (**NO "Part 1" or "Part 2" mentioned anywhere**).
 
 ---
 

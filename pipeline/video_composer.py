@@ -369,7 +369,7 @@ def _build_part_video(
     spf = duration / len(phrases)
 
     category = topic_data.get("category", "").strip()
-    badge_label = f"PART {part_num} • {category.upper()}" if category else f"PART {part_num} of 2"
+    badge_label = category.upper() if category else "KIDS FUN"
 
     def make_frame(t):
         # 1. Get base frame
@@ -399,9 +399,9 @@ def _build_part_video(
     clip = clip.with_audio(audio).with_fps(FPS)
 
     out_dir = os.path.dirname(output_path) or "output"
-    temp_audio = os.path.join(out_dir, f"temp_snd_part_{part_num}.m4a")
+    temp_audio = os.path.join(out_dir, f"temp_snd_vid_{part_num}.m4a")
 
-    logger.info(f"Rendering Part {part_num} ({badge_label}) -> {output_path} ({duration:.1f}s)")
+    logger.info(f"Rendering Video {part_num} ({badge_label}) -> {output_path} ({duration:.1f}s)")
     clip.write_videofile(
         output_path,
         codec="libx264",

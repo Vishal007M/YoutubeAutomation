@@ -1,4 +1,4 @@
-﻿"""
+"""
 metadata_gen.py - Generates SEO-optimised YouTube titles, descriptions, and tags
 for Part 1 and Part 2, each tailored to its specific topic and category.
 """
@@ -62,6 +62,8 @@ VIDEO 2:
 Create catchy YouTube Shorts metadata for BOTH videos.
 
 RULES:
+- ABSOLUTELY DO NOT write "Part 1", "Part 2", or "Part 1 of 2" anywhere in the titles or descriptions!
+- Each video is an independent standalone Short.
 - Titles: max 65 chars, catchy, start with topic, include category emoji, include #Shorts.
 - Descriptions: 150-250 chars, engaging, include #Shorts #Kids #{t1_cat.replace(' ', '')} and end with "Subscribe for more!".
 - Tags: 8-12 high-traffic tags for each.
@@ -92,6 +94,11 @@ Return ONLY raw valid JSON (no markdown fences, no triple backticks):
         meta = [data["part1"], data["part2"]]
 
         for m in meta:
+            # Strip any accidental Part 1 / Part 2 strings
+            for bad in ["Part 1", "Part 2", "part 1", "part 2", "PART 1", "PART 2", "Part 1 of 2", "Part 2 of 2"]:
+                m["title"] = m["title"].replace(f"- {bad}", "").replace(f"• {bad}", "").replace(bad, "").strip()
+                m["description"] = m["description"].replace(bad, "").strip()
+
             if "#Shorts" not in m["title"] and "#shorts" not in m["title"]:
                 m["title"] = m["title"][:60] + " #Shorts"
             m["title"] = m["title"][:100]

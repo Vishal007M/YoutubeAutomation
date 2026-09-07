@@ -1,11 +1,11 @@
 ﻿"""
-trend_finder.py - Selects TWO DIFFERENT random kids categories and topics.
-Guarantees:
-- Part 1 is chosen from one category (e.g. funny stories)
-- Part 2 is chosen from a DIFFERENT category (e.g. fairy tales, strictly cat2 != cat1)
-- Neither topic has ever been used in history
-- Includes core user categories: fairy tales, science facts, funny stories, riddles, ABC/numbers
+trend_finder.py - Interactive & Automated Topic Selector for YouTube Shorts.
+- Lets user interactively choose categories (Fairy Tales, Science Facts, Funny Stories, Riddles, ABC/Numbers)
+- Lets user choose "Other" and type their own custom topic
+- Supports fully automated random mode (guaranteeing different categories for Video 1 & Video 2)
+- Zero mentions of "Part 1" or "Part 2"
 """
+import sys
 import json
 import random
 import logging
@@ -13,7 +13,14 @@ from google import genai
 
 logger = logging.getLogger(__name__)
 
-# Core categories requested by user + popular kids themes
+CATEGORY_MAP = {
+    "1": ("fairy tales", "🏰 Fairy Tales"),
+    "2": ("science facts", "🔬 Science Facts"),
+    "3": ("funny stories", "😂 Funny Stories"),
+    "4": ("riddles", "🧩 Riddles"),
+    "5": ("ABC/numbers", "🔤 ABC / Numbers"),
+}
+
 CORE_CATEGORIES = [
     "fairy tales",
     "science facts",
@@ -22,73 +29,18 @@ CORE_CATEGORIES = [
     "ABC/numbers",
 ]
 
-EXPANDED_CATEGORIES = [
-    "fairy tales",
-    "science facts",
-    "funny stories",
-    "riddles",
-    "ABC/numbers",
-    "animals",
-    "space and planets",
-    "dinosaurs",
-    "ocean creatures",
-    "superheroes",
-]
-
-# Resilient models fallback list
+# Robust resilient models available on this API key
 GEMINI_MODELS = [
-    "gemini-3.6-flash",
+    "gemini-3.5-flash",
     "gemini-3.7-flash",
     "gemini-3.8-flash",
-    "gemini-3.5-flash",
-]
-
-FALLBACK_PAIRS = [
-    (
-        {
-            "topic": "The Monkey Who Forgot How to Climb",
-            "category": "funny stories",
-            "subject": "monkey",
-            "hook": "Whoops! Barnaby the monkey tried to walk like a penguin and forgot how to climb trees!",
-            "video_query": "funny playful monkey jungle",
-            "veo_prompt": "A cute 3D cartoon playful monkey laughing in jungle, Pixar Disney style, vertical 9:16",
-            "color_scheme": ["#FF5E62", "#FF9966"]
-        },
-        {
-            "topic": "The Mouse Who Outsmarted a Dragon",
-            "category": "fairy tales",
-            "subject": "mouse",
-            "hook": "Once upon a time in a magic kingdom, a tiny mouse challenged a giant roaring dragon!",
-            "video_query": "magical fairy tale castle forest",
-            "veo_prompt": "A cute 3D cartoon tiny mouse with a tiny shield facing a friendly giant dragon, Pixar Disney style, vertical 9:16",
-            "color_scheme": ["#4E54C8", "#8F94FB"]
-        }
-    ),
-    (
-        {
-            "topic": "The Mystery of the Flying Fish",
-            "category": "science facts",
-            "subject": "fish",
-            "hook": "Guess what? There are real fish in the ocean that can jump out of the water and FLY!",
-            "video_query": "flying fish ocean leaping",
-            "veo_prompt": "A colorful 3D cartoon fish gliding above ocean waves with sunshine, Pixar Disney style, vertical 9:16",
-            "color_scheme": ["#00C9FF", "#92FE9D"]
-        },
-        {
-            "topic": "What Has Keys But Cannot Open Any Doors?",
-            "category": "riddles",
-            "subject": "musical notes",
-            "hook": "Can you solve this super tricky riddle? What has eighty-eight keys but cannot open a single door?",
-            "video_query": "colorful piano musical notes cartoon",
-            "veo_prompt": "A cheerful 3D cartoon piano playing bouncy music notes in a colorful playroom, Pixar Disney style, vertical 9:16",
-            "color_scheme": ["#F7971E", "#FFD200"]
-        }
-    )
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
 ]
 
 
 def _call_gemini_resilient(client, prompt: str) -> str:
-    """Try models in sequence to prevent 503 temporary spike errors."""
+    """Try models in sequence to prevent quota or 503 errors."""
     for model_name in GEMINI_MODELS:
         try:
             response = client.models.generate_content(
@@ -97,100 +49,156 @@ def _call_gemini_resilient(client, prompt: str) -> str:
             )
             return response.text.strip()
         except Exception as e:
-            logger.warning(f"Model {model_name} note ({e}), trying next...")
+            logger.warning(f"Model {model_name} note ({e}), trying next available...")
     raise RuntimeError("All Gemini models temporarily unavailable")
 
 
-def find_two_different_topics(config, history):
+def _prompt_user_for_topic(video_num: int, exclude_cat: str = "") -> tuple[str, str]:
     """
-    Pick TWO completely DIFFERENT categories and topics for Part 1 and Part 2.
-    Example: Part 1 = funny stories, Part 2 = fairy tales (cat2 != cat1).
-    Returns: (topic1_data, topic2_data)
+    Prompt user in terminal for video choice:
+    Returns (category, custom_text_or_empty)
     """
-    client = genai.Client(api_key=config["gemini_api_key"])
+    default_cat = "random"
+    print(f"\n👉 Choose topic for Video {video_num}:")
+    print("   [1] 🏰 Fairy Tales")
+    print("   [2] 🔬 Science Facts")
+    print("   [3] 😂 Funny Stories")
+    print("   [4] 🧩 Riddles")
+    print("   [5] 🔤 ABC / Numbers")
+    print("   [6] 🎲 Random (AI picks a fresh trending topic)")
+    print("   [7] ✍️  Other / Custom (Type your own topic)")
 
-    # 1. Randomly choose Category 1 and Category 2 (guaranteed cat2 != cat1)
-    # Give priority to core user categories (80% core, 20% expanded)
-    pool = CORE_CATEGORIES if random.random() < 0.85 else EXPANDED_CATEGORIES
-    cat1 = random.choice(pool)
-    cat2 = random.choice([c for c in pool if c != cat1])
+    try:
+        choice = input(f"   Enter choice [1-7, Default: 6]: ").strip()
+    except Exception:
+        choice = "6"
 
+    if choice in CATEGORY_MAP:
+        cat = CATEGORY_MAP[choice][0]
+        return cat, ""
+    elif choice == "7":
+        try:
+            custom = input(f"   📝 Type your custom topic for Video {video_num}: ").strip()
+        except Exception:
+            custom = ""
+        if not custom:
+            custom = "A magical playful baby animal adventure"
+        return "custom", custom
+    else:
+        # Random selection
+        pool = [c for c in CORE_CATEGORIES if c != exclude_cat] or CORE_CATEGORIES
+        return random.choice(pool), ""
+
+
+def _generate_topic_for_spec(client, category: str, custom_text: str, history) -> dict:
+    """Generate or flesh out structured topic data using Gemini."""
     used_topics = history.get_used_topics(limit=150)
     used_str = "\n".join(f"- {t}" for t in used_topics) if used_topics else "None yet"
 
-    prompt = f"""You are a top viral YouTube Shorts creator making two separate daily videos for kids aged 3-8.
+    if category == "custom" and custom_text:
+        prompt = f"""You are a professional children's TV producer for YouTube Shorts (ages 3-8).
+A user requested this custom idea: "{custom_text}"
 
-Generate TWO completely different, high-engagement topics for today:
+Turn this idea into a structured kids YouTube Short.
+REQUIREMENTS:
+- topic: Catchy, fun title (max 50 chars, NO 'Part 1' or 'Part 2')
+- category: Closest category (fairy tales, science facts, funny stories, riddles, or kids fun)
+- subject: Single noun for 3D cartoon mascot (e.g. puppy, dragon, monkey, squirrel, sun, rocket, dinosaur)
+- hook: Exciting 1-sentence hook to grab kids' attention
+- video_query: Stock video search query (e.g. "playful puppy grass")
+- veo_prompt: 3D Pixar/Disney style video prompt (vertical 9:16)
+- color_scheme: Two vibrant hex colors
 
-PART 1 SHORT:
-- Category MUST BE: {cat1}
-- Must be a fun, standalone topic for this category.
-
-PART 2 SHORT:
-- Category MUST BE: {cat2} (COMPLETELY DIFFERENT FROM PART 1!)
-- Must be a fun, standalone topic for this category.
+Return ONLY raw valid JSON:
+{{
+  "topic": "The Squirrel Who Built a Rocket",
+  "category": "fairy tales",
+  "subject": "squirrel",
+  "hook": "Meet Sammy, a brave little squirrel who built a rocket out of an acorn!",
+  "video_query": "cute funny squirrel tree",
+  "veo_prompt": "A cute 3D cartoon baby squirrel wearing a tiny space helmet, Disney Pixar style, vertical 9:16",
+  "color_scheme": ["#FF5E62", "#FF9966"]
+}}"""
+    else:
+        prompt = f"""You are a top YouTube Shorts creator for kids aged 3-8.
+Pick ONE unique, super engaging topic for category: {category}
 
 TOPICS ALREADY USED (NEVER repeat or make similar):
 {used_str}
 
-REQUIREMENTS FOR EACH:
-- Safe, fun, exciting, G-rated for kids.
-- Specific single-noun "subject" for 3D mascot (e.g. monkey, dragon, fish, lion, rabbit, sun, robot, bee, car, dinosaur).
-- Exciting 1-sentence hook.
-- Search query for background video.
-- 3D cartoon Pixar/Disney style prompt.
-- Two vibrant hex colors for badge/gradient.
+REQUIREMENTS:
+- Safe, 100% G-rated, fun, exciting.
+- NO mentions of 'Part 1' or 'Part 2'.
+- topic: Catchy title (max 50 chars)
+- category: "{category}"
+- subject: Single noun for 3D cartoon mascot (e.g. monkey, dragon, fish, lion, rabbit, sun, robot, bee, car, dinosaur)
+- hook: Exciting 1-sentence hook.
+- video_query: Search query for background stock video.
+- veo_prompt: 3D cartoon Pixar/Disney style prompt.
+- color_scheme: Two vibrant hex colors.
 
-Return ONLY raw valid JSON (no markdown fences, no triple backticks):
+Return ONLY raw valid JSON:
 {{
-  "part1": {{
-    "topic": "The Clumsy Penguin Who Loved Roller Skates",
-    "category": "{cat1}",
-    "subject": "penguin",
-    "hook": "Whoops! Pip the playful penguin strapped on shiny roller skates and zipped down the ice!",
-    "video_query": "cute funny penguin sliding ice",
-    "veo_prompt": "A cute 3D cartoon chubby penguin smiling on roller skates, Pixar Disney style, vertical 9:16",
-    "color_scheme": ["#FF5E62", "#FF9966"]
-  }},
-  "part2": {{
-    "topic": "The Secret Riddle of the Magic Clock",
-    "category": "{cat2}",
-    "subject": "alarm clock",
-    "hook": "Can you solve this mystery? I have hands and a face, but no arms or smile! What am I?",
-    "video_query": "ticking clock magic cartoon colorful",
-    "veo_prompt": "A friendly 3D cartoon ticking alarm clock with glowing numbers in a magical room, Pixar Disney style, vertical 9:16",
-    "color_scheme": ["#4E54C8", "#8F94FB"]
-  }}
+  "topic": "Why Do Whales Sing Underwater?",
+  "category": "{category}",
+  "subject": "whale",
+  "hook": "Did you know giant whales sing secret songs across entire oceans?",
+  "video_query": "blue whale swimming ocean underwater",
+  "veo_prompt": "A majestic friendly 3D cartoon blue whale swimming in sunny blue ocean, Pixar Disney style, vertical 9:16",
+  "color_scheme": ["#1A78C2", "#4ECDC4"]
 }}"""
 
-    try:
-        text = _call_gemini_resilient(client, prompt)
+    text = _call_gemini_resilient(client, prompt)
 
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
+    if "```json" in text:
+        text = text.split("```json")[1].split("```")[0].strip()
+    elif "```" in text:
+        text = text.split("```")[1].split("```")[0].strip()
 
-        data = json.loads(text)
-        t1 = data["part1"]
-        t2 = data["part2"]
+    data = json.loads(text)
+    if "subject" not in data or not data["subject"]:
+        data["subject"] = data.get("topic", "star").split()[0].lower()
 
-        # Ensure subjects exist
-        for t in [t1, t2]:
-            if "subject" not in t or not t["subject"]:
-                t["subject"] = t.get("topic", "star").split()[0].lower()
-
-        logger.info(f"Generated Part 1: '{t1['topic']}' ({t1['category']})")
-        logger.info(f"Generated Part 2: '{t2['topic']}' ({t2['category']})")
-        return t1, t2
-
-    except Exception as e:
-        logger.warning(f"Dual topic generation failed ({e}), using fallback pair")
-        pair = random.choice(FALLBACK_PAIRS)
-        return pair[0], pair[1]
+    return data
 
 
-# Backwards compatibility alias
+def select_topics_for_run(config, history) -> tuple[dict, dict]:
+    """
+    Selects or prompts user for Video 1 and Video 2 topics.
+    Returns: (topic1_data, topic2_data)
+    """
+    client = genai.Client(api_key=config["gemini_api_key"])
+
+    # Check if running interactively
+    is_interactive = sys.stdin.isatty()
+
+    if is_interactive:
+        print("\n" + "═" * 60)
+        print("   🎬  CHOOSE YOUR TOPICS FOR TODAY'S 2 SHORTS")
+        print("═" * 60)
+        cat1, custom1 = _prompt_user_for_topic(1)
+        cat2, custom2 = _prompt_user_for_topic(2, exclude_cat=cat1 if cat1 != "custom" else "")
+    else:
+        # Automated non-interactive mode: pick 2 different random categories
+        cat1 = random.choice(CORE_CATEGORIES)
+        cat2 = random.choice([c for c in CORE_CATEGORIES if c != cat1])
+        custom1, custom2 = "", ""
+
+    print(f"\n✨ Generating creative concepts with Gemini AI…")
+    t1 = _generate_topic_for_spec(client, cat1, custom1, history)
+    t2 = _generate_topic_for_spec(client, cat2, custom2, history)
+
+    logger.info(f"Video 1 topic: '{t1['topic']}' ({t1['category']})")
+    logger.info(f"Video 2 topic: '{t2['topic']}' ({t2['category']})")
+
+    return t1, t2
+
+
+# Backwards compatibility aliases
+def find_two_different_topics(config, history):
+    return select_topics_for_run(config, history)
+
+
 def find_trending_topic(config, history):
-    t1, _ = find_two_different_topics(config, history)
+    t1, _ = select_topics_for_run(config, history)
     return t1
