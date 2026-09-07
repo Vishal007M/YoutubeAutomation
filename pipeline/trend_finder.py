@@ -1,6 +1,7 @@
-"""
-trend_finder.py - Uses Gemini AI (google-genai SDK) to find unique trending kids topics.
+﻿"""
+trend_finder.py - Uses Gemini AI to discover unique trending kids topics.
 Checks history to NEVER repeat a concept.
+Generates full visual metadata (subject, video queries, 3D character name).
 """
 import json
 import random
@@ -26,21 +27,42 @@ KIDS_CATEGORIES = [
 ]
 
 FALLBACK_TOPICS = [
-    {"topic": "Why Do Cats Always Land on Their Feet?", "category": "animals",
-     "emoji": "cat", "hook": "Cats have an amazing superpower - they almost never get hurt when they fall!",
-     "color_scheme": ["#FF6B6B", "#FFE66D"]},
-    {"topic": "How Big Is the Sun Compared to Earth?", "category": "space and planets",
-     "emoji": "sun", "hook": "The Sun is SO big that one million Earths could fit inside it!",
-     "color_scheme": ["#F7971E", "#FFD200"]},
-    {"topic": "Amazing Facts About Blue Whales", "category": "ocean creatures",
-     "emoji": "whale", "hook": "The blue whale is the largest animal that has EVER lived on Earth!",
-     "color_scheme": ["#1A78C2", "#4ECDC4"]},
-    {"topic": "Why Do We Dream When We Sleep?", "category": "human body for kids",
-     "emoji": "moon", "hook": "Every night while you sleep your brain is having an adventure!",
-     "color_scheme": ["#8E44AD", "#3498DB"]},
-    {"topic": "How Do Bees Make Honey?", "category": "insects and bugs",
-     "emoji": "bee", "hook": "Bees are natures tiny chefs and they make something delicious!",
-     "color_scheme": ["#F39C12", "#27AE60"]},
+    {
+        "topic": "Why Do Cats Always Land on Their Feet?",
+        "category": "animals",
+        "subject": "cat",
+        "hook": "Cats have an amazing superpower - they almost never get hurt when they fall!",
+        "video_query": "cute kitten playful jumping",
+        "veo_prompt": "A cute 3D Pixar style playful kitten landing gracefully on fluffy grass, bright colors, vertical 9:16",
+        "color_scheme": ["#FF6B6B", "#FFE66D"]
+    },
+    {
+        "topic": "How Big Is the Sun Compared to Earth?",
+        "category": "space and planets",
+        "subject": "sun",
+        "hook": "The Sun is SO big that one million Earths could fit inside it!",
+        "video_query": "sun space solar system earth",
+        "veo_prompt": "A glowing friendly 3D cartoon smiling sun in deep blue outer space with stars, vertical 9:16",
+        "color_scheme": ["#F7971E", "#FFD200"]
+    },
+    {
+        "topic": "Amazing Facts About Blue Whales",
+        "category": "ocean creatures",
+        "subject": "whale",
+        "hook": "The blue whale is the largest animal that has EVER lived on Earth!",
+        "video_query": "blue whale ocean swimming underwater",
+        "veo_prompt": "A majestic friendly 3D cartoon blue whale swimming peacefully in sunny blue ocean, vertical 9:16",
+        "color_scheme": ["#1A78C2", "#4ECDC4"]
+    },
+    {
+        "topic": "How Do Bees Make Honey?",
+        "category": "insects and bugs",
+        "subject": "honeybee",
+        "hook": "Bees are nature's tiny chefs and they make something super sweet and delicious!",
+        "video_query": "honey bee flowers colorful garden",
+        "veo_prompt": "A cute fluffy 3D cartoon bumblebee flying around vibrant flowers in a sunny garden, vertical 9:16",
+        "color_scheme": ["#F39C12", "#27AE60"]
+    }
 ]
 
 
@@ -51,27 +73,30 @@ def find_trending_topic(config, history):
     used_topics = history.get_used_topics(limit=150)
     used_str = "\n".join(f"- {t}" for t in used_topics) if used_topics else "None yet"
 
-    prompt = f"""You are a viral YouTube Shorts content expert for kids aged 3-10 years.
+    prompt = f"""You are a viral YouTube Shorts creator making educational content for kids aged 3-10.
 
-Pick ONE unique, super engaging topic for a kids educational short video.
+Pick ONE fascinating, specific topic for a kid-friendly educational short.
 
-Available categories: {", ".join(KIDS_CATEGORIES)}
+Categories: {", ".join(KIDS_CATEGORIES)}
 
-Topics ALREADY USED - do NOT repeat or create anything similar:
+Topics ALREADY USED (NEVER repeat or do anything similar):
 {used_str}
 
 Requirements:
-- Must be 100% safe and G-rated for young children
-- Pick a VERY SPECIFIC angle (not just "animals" but "Why do giraffes have long necks?")
-- Should be fascinating, surprising, or funny for kids
-- Completely different from all used topics above
+- 100% G-rated, safe, fun, and curious for kids
+- Must identify the specific core SUBJECT (single noun like octopus, giraffe, elephant, dinosaur, rocket, volcano, tiger, panda)
+- Provide a search query for stock video (e.g. "cute playful elephant safari")
+- Provide a 3D cartoon visual prompt for video generation
+- Completely fresh and novel!
 
-Return ONLY raw valid JSON (no markdown, no triple backticks, no extra text):
+Return ONLY valid raw JSON without markdown or code fences:
 {{
     "topic": "Why Do Giraffes Have Such Long Necks?",
     "category": "animals",
-    "emoji": "giraffe",
-    "hook": "Giraffes have necks as long as a whole school bus!",
+    "subject": "giraffe",
+    "hook": "Giraffes have necks as long as an entire school bus!",
+    "video_query": "giraffe savannah wildlife nature",
+    "veo_prompt": "A charming cute 3D cartoon baby giraffe nibbling acacia tree leaves in a sunny African savannah, Disney Pixar style, vertical 9:16",
     "color_scheme": ["#F9A825", "#2E7D32"]
 }}"""
 
@@ -88,11 +113,15 @@ Return ONLY raw valid JSON (no markdown, no triple backticks, no extra text):
             text = text.split("```")[1].split("```")[0].strip()
 
         topic_data = json.loads(text)
-        logger.info(f"Gemini topic selected: {topic_data['topic']}")
+        # Ensure subject exists
+        if "subject" not in topic_data or not topic_data["subject"]:
+            topic_data["subject"] = topic_data.get("topic", "star").split()[0].lower()
+
+        logger.info(f"Gemini topic selected: {topic_data['topic']} (Subject: {topic_data['subject']})")
         return topic_data
 
     except Exception as e:
-        logger.warning(f"Gemini topic generation failed ({e}), using fallback")
+        logger.warning(f"Gemini topic selection failed ({e}), using fallback")
         used_lower = {t.lower() for t in used_topics}
         unused = [t for t in FALLBACK_TOPICS if t["topic"].lower() not in used_lower]
         return random.choice(unused if unused else FALLBACK_TOPICS)

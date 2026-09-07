@@ -1,6 +1,6 @@
-"""
-script_writer.py - Uses Gemini AI (google-genai SDK) to write a 20-second
-kids-friendly script split into 2 equal parts.
+﻿"""
+script_writer.py - Generates highly engaging, fun, kid-friendly scripts for Shorts.
+Uses dynamic storytelling, excitement, and clear pacing for young kids.
 """
 import json
 import logging
@@ -10,31 +10,32 @@ logger = logging.getLogger(__name__)
 
 
 def write_script(config, topic_data):
-    """Generate a 20-second script split into 2 x 10-second parts."""
+    """Generate an enthusiastic kids script split into Part 1 and Part 2."""
     client = genai.Client(api_key=config["gemini_api_key"])
 
     duration    = config.get("video_duration_seconds", 20)
-    total_words = int(duration * 2.5)   # ~2.5 words/sec kids TTS pace
+    total_words = int(duration * 2.5)   # ~2.5 words/sec pace
     half_words  = total_words // 2
 
-    prompt = f"""You are writing a YouTube Shorts narration script for kids (ages 3-10).
+    prompt = f"""You are a professional children's TV host (like Blippi or Bluey) writing an ultra-fun YouTube Shorts script for kids aged 3-8.
 
 Topic: {topic_data["topic"]}
-Hook (use this to start): {topic_data["hook"]}
+Subject: {topic_data.get("subject", "nature")}
+Hook: {topic_data["hook"]}
 
-RULES:
-- Use VERY simple words that a 5-year-old understands
-- Be excited, enthusiastic, and fun!
-- Short punchy sentences (max 10 words each)
-- No emojis, no symbols, no special characters in the script text
-- Part 1 (~{half_words} words): Start with the hook, share 2 amazing facts
-- Part 2 (~{half_words} words): Share 2 more facts, end with "Follow for more amazing facts!"
-- Total = ~{total_words} words combined
+STYLE REQUIREMENTS:
+- Super enthusiastic, high energy, and friendly!
+- Start with an exciting exclamation ("Whoa!", "Guess what?", "Look!")
+- Use very simple words a 4-year-old understands easily
+- Punchy, short sentences (max 8-10 words each)
+- Absolutely NO emojis or special symbols in the text
+- Part 1 (~{half_words} words): Deliver the hook and 2 crazy fun facts that blow kids' minds!
+- Part 2 (~{half_words} words): Give 2 more unbelievable facts, then end with "Subscribe for more awesome fun facts!"
 
-Return ONLY raw valid JSON (no markdown, no triple backticks):
+Return ONLY raw valid JSON (no markdown fences, no triple backticks):
 {{
-    "part1_script": "Did you know giraffes have necks as long as a whole school bus! That is really really long! A giraffe uses its neck to reach leaves high up in the trees. Its tongue is also super long and dark purple!",
-    "part2_script": "Baby giraffes are already taller than most adults when they are born! And giraffes only need to sleep about thirty minutes every day! They are amazing right? Follow for more amazing animal facts!"
+    "part1_script": "Whoa! Look at this! Did you know giraffes have necks as long as a whole school bus? That is huge! Their tongues are super long and dark purple to eat prickly acacia leaves! Wow!",
+    "part2_script": "Guess what else! Baby giraffes can stand up and run just thirty minutes after being born! And adult giraffes only sleep thirty minutes a day! Subscribe for more awesome fun facts!"
 }}"""
 
     try:
@@ -57,22 +58,22 @@ Return ONLY raw valid JSON (no markdown, no triple backticks):
             raise ValueError("Empty script parts returned")
 
         result = {"part1_script": p1, "part2_script": p2, "full_script": p1 + " " + p2}
-        logger.info(f"Script ready. Words: {len(result['full_script'].split())}")
+        logger.info(f"Script generated ({len(result['full_script'].split())} words)")
         return result
 
     except Exception as e:
         logger.warning(f"Script generation failed ({e}), using fallback")
-        hook  = topic_data.get("hook", "This is absolutely amazing!")
+        hook = topic_data.get("hook", "Whoa! This is super amazing!")
         p1 = (
-            f"{hook} "
-            "Scientists have discovered so many incredible things about this! "
-            "You will not believe how awesome nature really is. "
-            "Every single day there are new surprises waiting to be found!"
+            f"Whoa! {hook} "
+            "Nature has so many crazy surprises waiting for you! "
+            "Scientists discovered this and everyone was completely shocked! "
+            "Are you ready to learn the secret?"
         )
         p2 = (
-            "There is so much more out there to learn and explore every day. "
-            "The world is full of wonders that will blow your mind. "
-            "Keep asking questions and keep being curious my friend. "
-            "Follow for more amazing facts every single day!"
+            "Here is another crazy fact! "
+            "This happens every single day right here on our planet! "
+            "Learning new things is the best superpower ever! "
+            "Subscribe for more awesome fun facts every single day!"
         )
         return {"part1_script": p1, "part2_script": p2, "full_script": p1 + " " + p2}

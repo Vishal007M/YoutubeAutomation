@@ -1,4 +1,4 @@
-# Credentials & Secrets
+﻿# Credentials & Secrets
 config.json
 client_secrets.json
 token.json
@@ -7,6 +7,8 @@ token.json
 history.db
 output/
 logs/
+assets_cache/
+*TEMP_MPY*
 
 # Python cache & env
 __pycache__/
